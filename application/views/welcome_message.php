@@ -1,62 +1,106 @@
-<!doctype html>
-<html lang="en" data-bs-theme="auto">
-  <head><script src="/docs/5.3/assets/js/color-modes.js"></script>
+<?php
 
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="">
-    <meta name="author" content="Mark Otto, Jacob Thornton, and Bootstrap contributors">
-    <meta name="generator" content="Hugo 0.111.3">
-    <title>Starter Template · Bootstrap v5.3</title>
+defined('BASEPATH') or exit('No direct script access allowed');
 
-    <link rel="canonical" href="https://getbootstrap.com/docs/5.3/examples/starter-template/">
+use Jenssegers\Blade\Blade;
 
-<link href="https://getbootstrap.com/docs/5.3/dist/css/bootstrap.min.css" rel="stylesheet">
+use Orm\Post;
+use Orm\User;
 
-    <!-- Favicons -->
-<link rel="apple-touch-icon" href="/docs/5.3/assets/img/favicons/apple-touch-icon.png" sizes="180x180">
-<link rel="icon" href="/docs/5.3/assets/img/favicons/favicon-32x32.png" sizes="32x32" type="image/png">
-<link rel="icon" href="/docs/5.3/assets/img/favicons/favicon-16x16.png" sizes="16x16" type="image/png">
-<link rel="manifest" href="/docs/5.3/assets/img/favicons/manifest.json">
-<link rel="mask-icon" href="/docs/5.3/assets/img/favicons/safari-pinned-tab.svg" color="#712cf9">
-<link rel="icon" href="/docs/5.3/assets/img/favicons/favicon.ico">
-<meta name="theme-color" content="#712cf9">
-  </head>
-  <body>
-<div class="col-lg-8 mx-auto p-4 py-md-5">
-  <main>
-    <h1 class="text-body-emphasis">Ujian Pemrograman Web</h1>
-    <hr class="col-3 col-md-2 mb-5">
+class Welcome extends CI_Controller
+{
+    /**
+     * Index Page for this controller.
+     *
+     * Maps to the following URL
+     * 		http://example.com/index.php/welcome
+     *	- or -
+     * 		http://example.com/index.php/welcome/index
+     *	- or -
+     * Since this controller is set as the default controller in
+     * config/routes.php, it's displayed at http://example.com/
+     *
+     * So any other public methods not prefixed with an underscore will
+     * map to /index.php/welcome/<method_name>
+     * @see https://codeigniter.com/userguide3/general/urls.html
+     */
+    private $_blade;
+    
+    // create construct
+    public function __construct()
+    {
+        parent::__construct();
+        $this->_blade = new Blade(VIEWPATH, APPPATH . 'cache');
+    }
+    
+    private function _createView($view, $data)
+    {
+        echo $this->_blade->make($view, $data)->render();
+    }
+    
+    public function index()
+    {
+        $user = User::all();
+        $this->_createView('form', ['user_list' => $user]);
+    }
 
-    <div class="row g-5">
-      <div class="col-md-6">
-        <h2 class="text-body-emphasis">Form Input Artikel</h2>
-        <p>Masukan data yang akan di proses</p>
-        <form method ="post" action="{{ site_url ('Welcome/update/' .$post->id) }}">
-            <div class="mb-3">
-                <label for="exampleInputEmail1" class="form-label">Username</label>
-                <select class ="form-control" name = "username">
-                  @foreach($avail_user as $user)
-                  <option value="{{ $user->id }}" {{ $post->user_id == $user->id? "selected": ""}}>{{ $user->username }}</option>
-                  @endforeach
-                </select>
+    public function simpan()
+    {
+        
+        if ($this->input->post()){
+            $user_id = $this->input->post('user_id');
+            $jenis = $this->input->post('jenis');
+            $article = $this->input->post('article');
 
+            $post = new Post();
+            $post->user_id = $user_id;
+            $post->jenis = $jenis;
+            $post->article = $article;
+            $post->save();
+        }
 
-            </div>
-            <div class="mb-3">
-                <label for="exampleInputEmail1" class="form-label">Artikel</label>
-                <textarea class="form-control" id="nama" name="artikel" rows="3">{{ $post->artikel }}</textarea>
-            </div>
-            <button type="submit" class="btn btn-primary">Submit</button>
-            <a class="btn btn-secondary" href="{{ site_url('Welcome/tampil') }}">Tampil</a>
-        </form>
-        </div>
-      </div>
-    </div>
-  </main>
-  <footer class="pt-5 my-5 text-body-secondary border-top">
-    Ujian Pemrograman Web 2023
-  </footer>
-</div>
-</body>
-</html>
+        redirect('Welcome/index');
+    }
+
+    public function hapus($id)
+    {
+        $post = \Orm\post::find($id);
+        $post->delete();
+        
+        redirect('Welcome/tampil');
+    }
+
+    public function edit($id)
+    {
+        $post = Post::find($id);
+        $users = User::all();
+
+        $jenis = 0;
+        if($post->jenis == 'Berita') $jenis = 0;
+        else if($post->jenis == 'Tutorial') $jenis = 1;
+        else if($post->jenis == 'Blog') $jenis = 2;
+
+        $this->_createView('update', ['post' => $post, 'users' => $users, 'jenis' => $jenis]);
+    }
+
+    public function update($id)
+    {
+        $post = Post::find($id);
+        $post->user_id = $this->input->post('user_id');
+        $post->article = $this->input->post('article');
+        $post->jenis = $this->input->post('radio');
+
+        $post->save();
+
+        redirect('Welcome/tampil');
+    }
+
+    public function tampil()
+    {
+        $post_list = Post::select('post.*', 'user.username', 'user.email')
+        ->join('user', 'post.user_id', '=', 'user.id')
+        ->get();
+
+        $this->_createView('tampil', ['post_list' => $post_list]);  
+}
+}
